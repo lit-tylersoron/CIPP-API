@@ -5,7 +5,9 @@ function Set-HaloMapping {
         $APIName,
         $Request
     )
-
+    Get-CIPPAzDataTableEntity @CIPPMapping -Filter "PartitionKey eq 'Mapping'" | ForEach-Object {
+        Remove-AzDataTableEntity @CIPPMapping -Entity $_
+    }
     foreach ($Mapping in ([pscustomobject]$Request.body.mappings).psobject.properties) {
         $AddObject = @{
             PartitionKey  = 'Mapping'
@@ -13,10 +15,12 @@ function Set-HaloMapping {
             'HaloPSA'     = "$($mapping.value.value)"
             'HaloPSAName' = "$($mapping.value.label)"
         }
-        Add-AzDataTableEntity @CIPPMapping -Entity $AddObject -Force
+
+        Add-CIPPAzDataTableEntity @CIPPMapping -Entity $AddObject -Force
+
         Write-LogMessage -API $APINAME -user $request.headers.'x-ms-client-principal' -message "Added mapping for $($mapping.name)." -Sev 'Info' 
     }
-    $Result = [pscustomobject]@{'Results' = "Successfully edited mapping table." }
+    $Result = [pscustomobject]@{'Results' = 'Successfully edited mapping table.' }
 
     Return $Result
 }
