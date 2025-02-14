@@ -26,7 +26,15 @@ function Push-AuditLogTenant {
             }
             $CIPPURL = $LegacyUrl
         } else {
-            $CIPPURL = 'https://{0}' -f $CippConfig.Value
+            if (!$CippConfig) {
+                    $CippConfig = @{
+                        PartitionKey = 'InstanceProperties'
+                        RowKey       = 'CIPPURL'
+                        Value        = [string]([System.Uri]$Request.Headers.'x-ms-original-url').Host
+                    }
+                    Add-AzDataTableEntity @ConfigTable -Entity $CippConfig -Force
+                    $CIPPURL = 'https://{0}' -f $CippConfig.Value
+            } else { $CIPPURL = 'https://{0}' -f $CippConfig.Value }
         }
 
         # Get webhook rules
@@ -36,7 +44,7 @@ function Push-AuditLogTenant {
         $Configuration = $ConfigEntries | Where-Object { ($_.Tenants -match $TenantFilter -or $_.Tenants -match 'AllTenants') }
         if ($Configuration) {
             try {
-                $LogSearches = Get-CippAuditLogSearches -TenantFilter $TenantFilter -ReadyToProcess | Select-Object -First 20
+                $LogSearches = Get-CippAuditLogSearches -TenantFilter $TenantFilter -ReadyToProcess | Select-Object -First 10
                 Write-Information ('Audit Logs: Found {0} searches, begin processing' -f $LogSearches.Count)
                 foreach ($Search in $LogSearches) {
                     $SearchEntity = Get-CIPPAzDataTableEntity @LogSearchesTable -Filter "Tenant eq '$($TenantFilter)' and RowKey eq '$($Search.id)'"
